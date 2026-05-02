@@ -1,0 +1,20 @@
+{
+  "kind": "collectionType",
+  "collectionName": "campaign_updates",
+  "info": {
+    "singularName": "campaign-update",
+    "pluralName": "campaign-updates",
+    "displayName": "Campaign Update"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "campaign": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::donation-campaign.donation-campaign",
+      "inversedBy": "updates"
+    },
+    "title": { "type": "string", "required": true },
+    "body": { "type": "richtext", "required": true }
+  }
+}

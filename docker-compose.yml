@@ -1,0 +1,103 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: social_digests
+      POSTGRES_PASSWORD: social_digests_dev
+      POSTGRES_DB: social_digests
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U social_digests"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://social_digests:social_digests_dev@postgres:5432/social_digests
+      NODE_ENV: development
+      JWT_SECRET: dev_jwt_secret_change_in_production
+      JWT_EXPIRES_IN: 7d
+      STRAPI_URL: http://cms:1337
+      STRAPI_API_TOKEN: social_digests_backend_dev_token_2024
+      FRONTEND_URL: http://localhost:5173
+      PORT: 3001
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      MPESA_CONSUMER_KEY: ${MPESA_CONSUMER_KEY:-}
+      MPESA_CONSUMER_SECRET: ${MPESA_CONSUMER_SECRET:-}
+      MPESA_SHORTCODE: ${MPESA_SHORTCODE:-174379}
+      MPESA_PASSKEY: ${MPESA_PASSKEY:-}
+      MPESA_CALLBACK_URL: ${MPESA_CALLBACK_URL:-https://api.socialdigests.com/api/donations/mpesa/callback}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  cms:
+    build:
+      context: ./cms
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "1337:1337"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: social_digests
+      DATABASE_USERNAME: social_digests
+      DATABASE_PASSWORD: social_digests_dev
+      DATABASE_SCHEMA: strapi
+      NODE_ENV: development
+      APP_KEYS: dev_app_key_1,dev_app_key_2,dev_app_key_3,dev_app_key_4
+      JWT_SECRET: dev_strapi_jwt_secret
+      API_TOKEN_SALT: dev_api_token_salt
+      ADMIN_JWT_SECRET: dev_admin_jwt_secret
+      TRANSFER_TOKEN_SALT: dev_transfer_token_salt
+      HOST: 0.0.0.0
+      PORT: 1337
+      STRAPI_TELEMETRY_DISABLED: "true"
+    volumes:
+      - ./cms:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+      - cms
+    environment:
+      VITE_API_URL: http://localhost:3001
+      VITE_STRAPI_URL: http://localhost:1337
+      VITE_STRAPI_ADMIN_TOKEN: social_digests_backend_dev_token_2024
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+      VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:

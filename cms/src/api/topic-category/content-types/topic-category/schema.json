@@ -1,0 +1,23 @@
+{
+  "kind": "collectionType",
+  "collectionName": "topic_categories",
+  "info": {
+    "singularName": "topic-category",
+    "pluralName": "topic-categories",
+    "displayName": "Topic Category"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "name": { "type": "string", "required": true },
+    "slug": { "type": "uid", "targetField": "name", "required": true },
+    "icon": { "type": "string" },
+    "is_active": { "type": "boolean", "default": true },
+    "sort_order": { "type": "integer", "default": 0 },
+    "topics": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::topic.topic",
+      "mappedBy": "category"
+    }
+  }
+}

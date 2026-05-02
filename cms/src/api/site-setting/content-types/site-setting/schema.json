@@ -1,0 +1,18 @@
+{
+  "kind": "singleType",
+  "collectionName": "site_settings",
+  "info": {
+    "singularName": "site-setting",
+    "pluralName": "site-settings",
+    "displayName": "Site Setting"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "platform_name": { "type": "string", "required": true, "default": "Social Digests" },
+    "tagline": { "type": "string" },
+    "logo": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "primary_color": { "type": "string", "default": "#C04000" },
+    "footer_text": { "type": "text" },
+    "support_email": { "type": "email" }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "kind": "collectionType",
+  "collectionName": "donation_campaigns",
+  "info": {
+    "singularName": "donation-campaign",
+    "pluralName": "donation-campaigns",
+    "displayName": "Donation Campaign"
+  },
+  "options": { "draftAndPublish": true },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "slug": { "type": "uid", "targetField": "title", "required": true },
+    "description": { "type": "richtext" },
+    "goal_amount": { "type": "decimal", "required": true },
+    "currency": {
+      "type": "enumeration",
+      "enum": ["KES", "USD"],
+      "default": "KES"
+    },
+    "topic_slug": { "type": "string" },
+    "beneficiary_name": { "type": "string" },
+    "beneficiary_details": { "type": "text" },
+    "status": {
+      "type": "enumeration",
+      "enum": ["draft", "active", "goal_reached", "expired", "completed"],
+      "default": "draft"
+    },
+    "deadline": { "type": "datetime" },
+    "images": { "type": "media", "multiple": true, "allowedTypes": ["images"] },
+    "updates": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::campaign-update.campaign-update",
+      "mappedBy": "campaign"
+    }
+  }
+}

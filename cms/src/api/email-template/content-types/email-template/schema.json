@@ -1,0 +1,17 @@
+{
+  "kind": "collectionType",
+  "collectionName": "email_templates",
+  "info": {
+    "singularName": "email-template",
+    "pluralName": "email-templates",
+    "displayName": "Email Template"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "key": { "type": "string", "required": true, "unique": true },
+    "subject": { "type": "string", "required": true },
+    "body_html": { "type": "richtext", "required": true },
+    "description": { "type": "text" },
+    "is_active": { "type": "boolean", "default": true }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "kind": "collectionType",
+  "collectionName": "banners",
+  "info": {
+    "singularName": "banner",
+    "pluralName": "banners",
+    "displayName": "Banner"
+  },
+  "options": { "draftAndPublish": false },
+  "attributes": {
+    "title": { "type": "string", "required": true },
+    "body": { "type": "text" },
+    "cta_label": { "type": "string" },
+    "cta_url": { "type": "string" },
+    "image": { "type": "media", "multiple": false, "allowedTypes": ["images"] },
+    "is_active": { "type": "boolean", "default": true },
+    "starts_at": { "type": "datetime" },
+    "ends_at": { "type": "datetime" }
+  }
+}

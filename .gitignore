@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.production
+# Keep examples
+!.env.example
+
+# Build outputs
+dist/
+build/
+.output/
+
+# Strapi
+cms/.cache/
+cms/.strapi/
+cms/build/
+cms/public/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Coverage
+coverage/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+postgres_data/
+
+# Editor history
+.history/
+
+# Root lockfile (each sub-project manages its own)
+package-lock.json
