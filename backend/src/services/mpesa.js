@@ -1,4 +1,6 @@
-const DARAJA_BASE = 'https://sandbox.safaricom.co.ke'
+const DARAJA_BASE = process.env.MPESA_ENV === 'production'
+  ? 'https://api.safaricom.co.ke'
+  : 'https://sandbox.safaricom.co.ke'
 
 export async function getAccessToken() {
   if (!process.env.MPESA_CONSUMER_KEY) {

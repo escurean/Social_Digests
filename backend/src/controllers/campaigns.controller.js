@@ -1,4 +1,7 @@
 import { query } from '../config/db.js'
+import { getCache, setCache, invalidate } from '../services/cache.js'
+
+const CAMPAIGN_TTL = 30 // seconds
 
 function slugify(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -45,6 +48,10 @@ export async function list(req, res, next) {
 export async function getOne(req, res, next) {
   try {
     const { slug } = req.params
+    const cacheKey = `campaign:${slug}`
+    const cached = await getCache(cacheKey)
+    if (cached) return res.json(cached)
+
     const { rows: [campaign] } = await query(
       `SELECT c.*,
               CASE WHEN c.goal_amount > 0 THEN ROUND((c.raised_amount::numeric / c.goal_amount) * 100, 1) ELSE 0 END AS progress_pct,
@@ -57,6 +64,7 @@ export async function getOne(req, res, next) {
       [slug]
     )
     if (!campaign) return res.status(404).json({ error: 'Campaign not found.' })
+    await setCache(cacheKey, campaign, CAMPAIGN_TTL)
     res.json(campaign)
   } catch (err) {
     next(err)
@@ -82,6 +90,7 @@ export async function create(req, res, next) {
        deadline || null, beneficiary_name?.trim() || null, status, topic_slug || null, req.user.id]
     )
 
+    await invalidate(`campaign:${slug}*`)
     res.status(201).json(campaign)
   } catch (err) {
     next(err)
@@ -114,6 +123,7 @@ export async function update(req, res, next) {
        status || null, topic_slug || null, slug]
     )
 
+    await invalidate(`campaign:${slug}*`)
     res.json(campaign)
   } catch (err) {
     next(err)
@@ -126,6 +136,7 @@ export async function remove(req, res, next) {
     const { rows: [c] } = await query('SELECT id FROM campaigns WHERE slug = $1', [slug])
     if (!c) return res.status(404).json({ error: 'Campaign not found.' })
     await query('DELETE FROM campaigns WHERE slug = $1', [slug])
+    await invalidate(`campaign:${slug}*`)
     res.json({ message: 'Campaign deleted.' })
   } catch (err) {
     next(err)
@@ -135,6 +146,10 @@ export async function remove(req, res, next) {
 export async function getStats(req, res, next) {
   try {
     const { slug } = req.params
+    const cacheKey = `campaign:${slug}:stats`
+    const cached = await getCache(cacheKey)
+    if (cached) return res.json(cached)
+
     const { rows: [campaign] } = await query(
       `SELECT c.id, c.slug, c.title, c.goal_amount, c.raised_amount, c.currency, c.deadline, c.status,
               CASE WHEN c.goal_amount > 0 THEN ROUND((c.raised_amount::numeric / c.goal_amount) * 100, 1) ELSE 0 END AS progress_pct,
@@ -146,6 +161,7 @@ export async function getStats(req, res, next) {
       [slug]
     )
     if (!campaign) return res.status(404).json({ error: 'Campaign not found.' })
+    await setCache(cacheKey, campaign, CAMPAIGN_TTL)
     res.json(campaign)
   } catch (err) {
     next(err)

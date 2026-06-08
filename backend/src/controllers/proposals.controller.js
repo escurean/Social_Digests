@@ -69,13 +69,19 @@ export async function submit(req, res, next) {
 
 export async function list(req, res, next) {
   try {
-    const { status, page = 1, limit = 20 } = req.query
-    const offset = (Math.max(1, parseInt(page)) - 1) * Math.min(50, parseInt(limit))
+    const { status, page, limit } = req.query
+
+    const lim = Math.min(50, Math.max(1, parseInt(limit) || 20))
+    const off = Math.max(0, (Math.max(1, parseInt(page) || 1) - 1) * lim)
 
     const conditions = []
     const params = []
     if (status) { params.push(status); conditions.push(`p.status = $${params.length}`) }
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''
+
+    params.push(lim, off)
+    const limIdx = params.length - 1
+    const offIdx = params.length
 
     const { rows } = await query(
       `SELECT p.*, u.name AS user_name, u.email AS user_email,
@@ -85,12 +91,12 @@ export async function list(req, res, next) {
        LEFT JOIN users r ON r.id = p.reviewed_by
        ${where}
        ORDER BY p.created_at DESC
-       LIMIT ${Math.min(50, parseInt(limit))} OFFSET ${offset}`,
+       LIMIT $${limIdx} OFFSET $${offIdx}`,
       params
     )
 
     const { rows: [{ count }] } = await query(
-      `SELECT COUNT(*) FROM topic_proposals p ${where}`, params
+      `SELECT COUNT(*) FROM topic_proposals p ${where}`, params.slice(0, -2)
     )
 
     res.json({ proposals: rows, total: parseInt(count) })

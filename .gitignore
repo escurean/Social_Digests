@@ -48,3 +48,5 @@ postgres_data/
 
 # Root lockfile (each sub-project manages its own)
 package-lock.json
+
+.*

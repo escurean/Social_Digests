@@ -1,6 +1,24 @@
 import { query } from '../config/db.js'
 import { createPaymentIntent, verifyWebhookSignature } from '../services/stripe.js'
 import { stkPush } from '../services/mpesa.js'
+import { emailQueue } from '../queues/emailQueue.js'
+import { invalidate } from '../services/cache.js'
+import { logger } from '../services/logger.js'
+import { isAllowedSafaricomIP } from '../utils/ipAllowlist.js'
+
+async function queueReceipt(donationId, userId, amount, currency, campaignTitle, method) {
+  try {
+    const { rows: [user] } = await query('SELECT email, name FROM users WHERE id = $1', [userId])
+    if (!user) return
+    await emailQueue.add(
+      'donation_receipt',
+      { to: user.email, templateKey: 'donation_receipt', variables: { name: user.name, amount: Number(amount).toLocaleString(), currency, campaignTitle, method } },
+      { attempts: 5, backoff: { type: 'exponential', delay: 10000 } }
+    )
+  } catch (err) {
+    logger.error({ event: 'email.queue_failed', donationId, err: err.message }, 'Failed to queue receipt email')
+  }
+}
 
 export async function initiate(req, res, next) {
   try {
@@ -83,6 +101,8 @@ export async function initiate(req, res, next) {
          `Your donation of ${usedCurrency} ${parsedAmount.toLocaleString()} to "${campaign.title}" was received. Thank you!`,
          `/campaigns/${campaign_slug}`]
       )
+      await queueReceipt(donation.id, req.user.id, parsedAmount, usedCurrency, campaign.title, 'M-Pesa')
+      await invalidate(`campaign:${campaign_slug}*`)
       return res.status(201).json({
         ...donation,
         status: 'completed',
@@ -123,9 +143,10 @@ export async function confirmStripePayment(req, res, next) {
     const { payment_intent_id } = req.body
     if (!payment_intent_id) return res.status(400).json({ error: 'payment_intent_id is required.' })
 
+    // FIX #1: filter by user_id — prevents user A from completing user B's donation
     const { rows: [donation] } = await query(
-      "SELECT * FROM donations WHERE gateway_reference=$1 AND status='pending'",
-      [payment_intent_id]
+      "SELECT * FROM donations WHERE gateway_reference=$1 AND user_id=$2 AND status='pending'",
+      [payment_intent_id, req.user.id]
     )
     if (!donation) return res.status(404).json({ error: 'Pending donation not found.' })
 
@@ -140,6 +161,8 @@ export async function confirmStripePayment(req, res, next) {
        `Your card donation of ${donation.currency} ${Number(donation.amount).toLocaleString()} to "${campaign?.title}" was received. Thank you!`,
        `/campaigns/${campaign?.slug || ''}`]
     )
+    await queueReceipt(donation.id, donation.user_id, donation.amount, donation.currency, campaign?.title, 'Card')
+    if (campaign?.slug) await invalidate(`campaign:${campaign.slug}*`)
 
     res.json({ status: 'completed' })
   } catch (err) {
@@ -176,12 +199,32 @@ export async function stripeWebhook(req, res) {
       const donationId = event.data.object.metadata?.donation_id
       if (donationId) await query("UPDATE donations SET status='failed' WHERE id=$1", [donationId])
     }
-  } catch { /* non-fatal — logged by Morgan */ }
+  } catch (err) {
+    // FIX #6: log properly — silent catch was hiding DB failures and preventing Sentry alerts.
+    // Note: 200 was already sent so Stripe won't retry; investigate via Sentry/logs.
+    logger.error(
+      { event: 'stripe.webhook_processing_failed', webhookType: event.type, err: err.message },
+      'Stripe webhook processing failed after acknowledgement'
+    )
+  }
 
   res.json({ received: true })
 }
 
 export async function mpesaCallback(req, res) {
+  // FIX #2: reject requests not originating from Safaricom's known IP ranges.
+  // trust proxy = 1 (FIX #4) ensures req.ip is the real client IP behind nginx.
+  if (process.env.NODE_ENV === 'production' && !isAllowedSafaricomIP(req.ip)) {
+    logger.warn(
+      { event: 'mpesa.callback_ip_rejected', ip: req.ip, body: req.body },
+      'M-Pesa callback rejected: IP not in Safaricom allowlist'
+    )
+    return res.status(403).json({ ResultCode: 1, ResultDesc: 'Forbidden' })
+  }
+
+  // Always audit-log the full callback (including failures)
+  logger.info({ event: 'mpesa.callback_received', ip: req.ip, body: req.body }, 'M-Pesa callback received')
+
   try {
     const callback = req.body?.Body?.stkCallback
     if (!callback) return res.json({ ResultCode: 0, ResultDesc: 'Accepted' })
@@ -206,10 +249,17 @@ export async function mpesaCallback(req, res) {
          `Your M-Pesa donation of ${donation.currency} ${Number(donation.amount).toLocaleString()} to "${campaign?.title}" was received. Thank you!`,
          `/campaigns/${campaign?.slug || ''}`]
       )
+      await queueReceipt(donation.id, donation.user_id, donation.amount, donation.currency, campaign?.title, 'M-Pesa')
+      if (campaign?.slug) await invalidate(`campaign:${campaign.slug}*`)
     } else {
       await query("UPDATE donations SET status='failed' WHERE id=$1", [donation.id])
     }
-  } catch { /* non-fatal */ }
+  } catch (err) {
+    logger.error(
+      { event: 'mpesa.callback_processing_failed', err: err.message, body: req.body },
+      'M-Pesa callback processing failed'
+    )
+  }
 
   res.json({ ResultCode: 0, ResultDesc: 'Accepted' })
 }

@@ -17,8 +17,8 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const googleBtnRef = useRef(null)
 
-  const handleSuccess = (user, token) => {
-    login(user, token)
+  const handleSuccess = (user) => {
+    login(user)
     addToast({ message: `Welcome to Social Digests, ${user.name}!`, type: 'success' })
     navigate('/')
   }
@@ -34,7 +34,7 @@ export default function RegisterPage() {
           setLoading(true)
           try {
             const { data } = await auth.google(credential)
-            handleSuccess(data.user, data.token)
+            handleSuccess(data.user)
           } catch (err) {
             setErrors({ submit: err.response?.data?.error || 'Google sign-up failed.' })
           } finally {
@@ -71,7 +71,7 @@ export default function RegisterPage() {
     setLoading(true)
     try {
       const { data } = await auth.register({ name: form.name, email: form.email, password: form.password })
-      handleSuccess(data.user, data.token)
+      handleSuccess(data.user)
     } catch (err) {
       setErrors({ submit: err.response?.data?.error || 'Registration failed. Please try again.' })
     } finally {

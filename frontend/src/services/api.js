@@ -6,24 +6,67 @@ const STRAPI_URL = import.meta.env.VITE_STRAPI_URL || 'http://localhost:1337'
 
 export const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
+  withCredentials: true, // sends httpOnly cookies automatically
 })
 
 export const strapiApi = axios.create({
   baseURL: STRAPI_URL,
 })
 
-api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token
-  if (token) config.headers.Authorization = `Bearer ${token}`
-  return config
-})
+// ── Refresh token interceptor ─────────────────────────────────
+// When a request gets a 401 the interceptor:
+//   1. Calls POST /api/auth/refresh (browser sends refresh_token cookie)
+//   2. On success — retries the original request (access_token cookie is now fresh)
+//   3. On failure — logs the user out
+//
+// Concurrent 401s are queued and replayed together after a single refresh,
+// preventing multiple simultaneous refresh calls.
+
+let isRefreshing = false
+let waitQueue = []
+
+function drainQueue(error) {
+  waitQueue.forEach(({ resolve, reject }) => (error ? reject(error) : resolve()))
+  waitQueue = []
+}
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) useAuthStore.getState().logout()
-    return Promise.reject(err)
+  async (err) => {
+    const original = err.config
+
+    // Only attempt refresh on 401, only once per request, and never for
+    // the refresh endpoint itself (would cause an infinite loop).
+    if (
+      err.response?.status !== 401 ||
+      original._retried ||
+      original.url === '/api/auth/refresh'
+    ) {
+      return Promise.reject(err)
+    }
+
+    if (isRefreshing) {
+      // Another refresh is already in flight — queue this request and replay it
+      // once the refresh resolves.
+      return new Promise((resolve, reject) => {
+        waitQueue.push({ resolve, reject })
+      }).then(() => api(original))
+    }
+
+    original._retried = true
+    isRefreshing = true
+
+    try {
+      await api.post('/api/auth/refresh')
+      drainQueue(null)
+      return api(original)
+    } catch (refreshErr) {
+      drainQueue(refreshErr)
+      useAuthStore.getState().logout()
+      return Promise.reject(refreshErr)
+    } finally {
+      isRefreshing = false
+    }
   }
 )
 
@@ -166,10 +209,10 @@ export const cmsAdmin = {
   uploadImage: async (file) => {
     const form = new FormData()
     form.append('files', file)
-    const token = useAuthStore.getState().token
+    // credentials: 'include' sends the httpOnly access_token cookie
     const res = await fetch(`${API_URL}/api/cms/upload`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
       body: form,
     })
     if (!res.ok) {

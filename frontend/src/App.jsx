@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from 'react'
+import React, { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import useAuthStore from './store/authStore.js'
 import PublicLayout from './components/layouts/PublicLayout.jsx'
@@ -16,9 +16,11 @@ const ProfilePage        = lazy(() => import('./pages/public/ProfilePage.jsx'))
 const StaticPage         = lazy(() => import('./pages/public/StaticPage.jsx'))
 
 // ── Auth pages ────────────────────────────────────────────────
-const LoginPage          = lazy(() => import('./pages/auth/LoginPage.jsx'))
-const RegisterPage       = lazy(() => import('./pages/auth/RegisterPage.jsx'))
-const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage.jsx'))
+const LoginPage           = lazy(() => import('./pages/auth/LoginPage.jsx'))
+const RegisterPage        = lazy(() => import('./pages/auth/RegisterPage.jsx'))
+const ForgotPasswordPage  = lazy(() => import('./pages/auth/ForgotPasswordPage.jsx'))
+const VerifyEmailPage     = lazy(() => import('./pages/auth/VerifyEmailPage.jsx'))
+const ResetPasswordPage   = lazy(() => import('./pages/auth/ResetPasswordPage.jsx'))
 
 // ── Admin pages ───────────────────────────────────────────────
 const AdminDashboard       = lazy(() => import('./pages/admin/DashboardPage.jsx'))
@@ -40,21 +42,38 @@ function LoadingFallback() {
   return <div className="loading-screen">Loading…</div>
 }
 
-function ProtectedRoute({ children }) {
+// Guards receive `hydrated` so they never redirect while checkAuth() is in flight.
+// Without this, AdminRoute would see user=null and redirect to login on every
+// page refresh, even for authenticated admins.
+
+function ProtectedRoute({ children, hydrated }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  if (!hydrated) return <LoadingFallback />
   if (!isAuthenticated) return <Navigate to="/auth/login" replace />
   return children
 }
 
-function AdminRoute({ children }) {
+function AdminRoute({ children, hydrated }) {
   const { isAuthenticated, user } = useAuthStore()
-  if (!isAuthenticated || user?.role !== 'admin') {
-    return <Navigate to="/auth/login" replace />
-  }
+  if (!hydrated) return <LoadingFallback />
+  if (!isAuthenticated || user?.role !== 'admin') return <Navigate to="/auth/login" replace />
   return children
 }
 
 export default function App() {
+  const { isAuthenticated, user, checkAuth } = useAuthStore()
+
+  // hydrated = checkAuth() has resolved (or wasn't needed).
+  // Start as false only when we have a persisted session but no user yet
+  // (i.e. after a page refresh). Immediate for logged-out users.
+  const needsHydration = isAuthenticated && !user
+  const [hydrated, setHydrated] = useState(!needsHydration)
+
+  useEffect(() => {
+    if (!needsHydration) return
+    checkAuth().finally(() => setHydrated(true))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <BrowserRouter>
       <Suspense fallback={<LoadingFallback />}>
@@ -64,7 +83,7 @@ export default function App() {
             <Route path="/"                element={<HomePage />} />
             <Route path="/topics"          element={<TopicsPage />} />
             <Route path="/topics/propose"  element={
-              <ProtectedRoute><ProposePage /></ProtectedRoute>
+              <ProtectedRoute hydrated={hydrated}><ProposePage /></ProtectedRoute>
             } />
             <Route path="/topics/:slug"    element={<TopicDetailPage />} />
             <Route path="/campaigns"       element={<CampaignsPage />} />
@@ -74,15 +93,17 @@ export default function App() {
           </Route>
 
           {/* ── Auth ── */}
-          <Route path="/auth/login"           element={<LoginPage />} />
-          <Route path="/auth/register"        element={<RegisterPage />} />
-          <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/auth/login"            element={<LoginPage />} />
+          <Route path="/auth/register"         element={<RegisterPage />} />
+          <Route path="/auth/forgot-password"  element={<ForgotPasswordPage />} />
+          <Route path="/auth/verify-email"     element={<VerifyEmailPage />} />
+          <Route path="/auth/reset-password"   element={<ResetPasswordPage />} />
 
           {/* ── Admin ── */}
           <Route path="/admin" element={
-            <AdminRoute><AdminLayout /></AdminRoute>
+            <AdminRoute hydrated={hydrated}><AdminLayout /></AdminRoute>
           }>
-            <Route index                  element={<AdminDashboard />} />
+            <Route index                         element={<AdminDashboard />} />
             <Route path="topics"                 element={<AdminTopics />} />
             <Route path="topics/new"             element={<AdminTopicNew />} />
             <Route path="topics/edit/:slug"      element={<AdminTopicNew />} />
@@ -91,13 +112,13 @@ export default function App() {
             <Route path="campaigns"              element={<AdminCampaigns />} />
             <Route path="campaigns/new"          element={<AdminCampaignNew />} />
             <Route path="campaigns/edit/:slug"   element={<AdminCampaignNew />} />
-            <Route path="banners"         element={<AdminBanners />} />
-            <Route path="pages"           element={<AdminPages />} />
-            <Route path="email-templates" element={<AdminEmailTemplates />} />
-            <Route path="moderation"      element={<AdminModeration />} />
-            <Route path="users"           element={<AdminUsers />} />
-            <Route path="settings"        element={<AdminSettings />} />
-            <Route path="analytics"       element={<AdminAnalytics />} />
+            <Route path="banners"                element={<AdminBanners />} />
+            <Route path="pages"                  element={<AdminPages />} />
+            <Route path="email-templates"        element={<AdminEmailTemplates />} />
+            <Route path="moderation"             element={<AdminModeration />} />
+            <Route path="users"                  element={<AdminUsers />} />
+            <Route path="settings"               element={<AdminSettings />} />
+            <Route path="analytics"              element={<AdminAnalytics />} />
           </Route>
 
           {/* ── 404 ── */}

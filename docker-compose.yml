@@ -5,14 +5,26 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: social_digests
-      POSTGRES_PASSWORD: social_digests_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: social_digests
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U social_digests"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,15 +39,20 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://social_digests:social_digests_dev@postgres:5432/social_digests
+      DATABASE_URL: postgresql://social_digests:${POSTGRES_PASSWORD}@postgres:5432/social_digests
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       NODE_ENV: development
-      JWT_SECRET: dev_jwt_secret_change_in_production
-      JWT_EXPIRES_IN: 7d
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_DAYS: 30
       STRAPI_URL: http://cms:1337
-      STRAPI_API_TOKEN: social_digests_backend_dev_token_2024
+      STRAPI_API_TOKEN: ${STRAPI_API_TOKEN}
       FRONTEND_URL: http://localhost:5173
       PORT: 3001
+      SENTRY_DSN: ${SENTRY_DSN:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
@@ -64,14 +81,14 @@ services:
       DATABASE_PORT: 5432
       DATABASE_NAME: social_digests
       DATABASE_USERNAME: social_digests
-      DATABASE_PASSWORD: social_digests_dev
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       DATABASE_SCHEMA: strapi
       NODE_ENV: development
-      APP_KEYS: dev_app_key_1,dev_app_key_2,dev_app_key_3,dev_app_key_4
-      JWT_SECRET: dev_strapi_jwt_secret
-      API_TOKEN_SALT: dev_api_token_salt
-      ADMIN_JWT_SECRET: dev_admin_jwt_secret
-      TRANSFER_TOKEN_SALT: dev_transfer_token_salt
+      APP_KEYS: ${STRAPI_APP_KEYS}
+      JWT_SECRET: ${STRAPI_JWT_SECRET}
+      API_TOKEN_SALT: ${STRAPI_API_TOKEN_SALT}
+      ADMIN_JWT_SECRET: ${STRAPI_ADMIN_JWT_SECRET}
+      TRANSFER_TOKEN_SALT: ${STRAPI_TRANSFER_TOKEN_SALT}
       HOST: 0.0.0.0
       PORT: 1337
       STRAPI_TELEMETRY_DISABLED: "true"
@@ -92,7 +109,6 @@ services:
     environment:
       VITE_API_URL: http://localhost:3001
       VITE_STRAPI_URL: http://localhost:1337
-      VITE_STRAPI_ADMIN_TOKEN: social_digests_backend_dev_token_2024
       VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
       VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
     volumes:
@@ -101,3 +117,4 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:

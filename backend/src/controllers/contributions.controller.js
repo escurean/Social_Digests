@@ -1,4 +1,7 @@
 import { query } from '../config/db.js'
+import { getCache, setCache, invalidate } from '../services/cache.js'
+
+const CONTRIBUTIONS_TTL = 60 // seconds
 
 export async function list(req, res, next) {
   try {
@@ -6,6 +9,10 @@ export async function list(req, res, next) {
     const page  = Math.max(1, parseInt(req.query.page)  || 1)
     const limit = Math.min(50, parseInt(req.query.limit) || 20)
     const offset = (page - 1) * limit
+
+    const cacheKey = `contributions:${slug}:p${page}:l${limit}`
+    const cached = await getCache(cacheKey)
+    if (cached && !req.user) return res.json(cached)
 
     const { rows } = await query(
       `SELECT c.id, c.body, c.parent_id, c.reaction_count, c.is_removed, c.created_at,
@@ -34,10 +41,15 @@ export async function list(req, res, next) {
       reactions.forEach((r) => { userReactions[r.contribution_id] = r.type })
     }
 
-    res.json({
+    const payload = {
       contributions: rows.map((c) => ({ ...c, my_reaction: userReactions[c.id] || null })),
       total: parseInt(count), page, limit,
-    })
+    }
+
+    // Only cache unauthenticated view (reactions are user-specific)
+    if (!req.user) await setCache(cacheKey, payload, CONTRIBUTIONS_TTL)
+
+    res.json(payload)
   } catch (err) {
     next(err)
   }
@@ -65,6 +77,9 @@ export async function create(req, res, next) {
     )
 
     await query('UPDATE topics SET contribution_count = contribution_count + 1 WHERE slug = $1', [slug])
+
+    // Invalidate all cached pages for this topic
+    await invalidate(`contributions:${slug}:*`)
 
     const { rows: [user] } = await query(
       'SELECT id, name, avatar_url, role FROM users WHERE id = $1', [req.user.id]
@@ -96,6 +111,9 @@ export async function update(req, res, next) {
       'UPDATE contributions SET body = $1 WHERE id = $2 RETURNING *',
       [body.trim(), id]
     )
+
+    await invalidate(`contributions:${c.topic_slug}:*`)
+
     res.json(updated)
   } catch (err) {
     next(err)
@@ -114,6 +132,9 @@ export async function remove(req, res, next) {
       'UPDATE topics SET contribution_count = GREATEST(0, contribution_count - 1) WHERE slug = $1',
       [c.topic_slug]
     )
+
+    await invalidate(`contributions:${c.topic_slug}:*`)
+
     res.json({ message: 'Contribution removed.' })
   } catch (err) {
     next(err)
@@ -126,6 +147,8 @@ export async function flag(req, res, next) {
     const { reason } = req.body
 
     if (!reason?.trim()) return res.status(400).json({ error: 'Reason is required.' })
+    // FIX #12: enforce upper bound to prevent DB abuse
+    if (reason.trim().length > 1000) return res.status(400).json({ error: 'Reason must be under 1000 characters.' })
 
     const { rows: [c] } = await query('SELECT * FROM contributions WHERE id = $1', [id])
     if (!c) return res.status(404).json({ error: 'Contribution not found.' })
