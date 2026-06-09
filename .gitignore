@@ -46,7 +46,7 @@ postgres_data/
 # Editor history
 .history/
 
-# Root lockfile (each sub-project manages its own)
-package-lock.json
+# Root lockfile only (sub-project lockfiles are committed)
+/package-lock.json
 
 .*
