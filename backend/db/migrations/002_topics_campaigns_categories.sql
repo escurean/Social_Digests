@@ -56,28 +56,3 @@ CREATE TABLE IF NOT EXISTS campaigns (
 CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
 CREATE INDEX IF NOT EXISTS idx_campaigns_topic  ON campaigns(topic_slug);
 
--- Seed topics
-INSERT INTO topics (slug, title, context, category_slug, status, is_featured, contribution_count) VALUES
-  ('water-nairobi-informal',
-   'Water access in Nairobi informal settlements',
-   'Residents of Mathare, Kibera, and Korogocho rely on expensive kiosks and unsafe sources. This topic explores policy and community solutions for equitable water access.',
-   'water', 'active', true, 142),
-  ('teacher-shortages-rural',
-   'Teacher shortages in rural schools',
-   'Many county schools in Turkana, Marsabit, and Mandera lack qualified teachers. How can government and communities address this persistent gap?',
-   'education', 'active', true, 87),
-  ('boda-boda-safety',
-   'Boda boda safety and regulation',
-   'Motorcycle taxis account for a growing share of road fatalities. What licensing, infrastructure, and cultural changes can make them safer?',
-   'governance', 'active', false, 54)
-ON CONFLICT (slug) DO NOTHING;
-
--- Seed campaign
-INSERT INTO campaigns (slug, title, description, goal_amount, raised_amount, currency, deadline, beneficiary_name, status, topic_slug) VALUES
-  ('borehole-mathare-south',
-   'Borehole for Mathare South',
-   'Residents of Mathare South have relied on expensive water kiosks for years. This campaign will fund the drilling and casing of a community borehole that will serve approximately 3,000 households with clean, affordable water.',
-   800000, 504000, 'KES',
-   NOW() + INTERVAL '45 days',
-   'Mathare South Community', 'active', 'water-nairobi-informal')
-ON CONFLICT (slug) DO NOTHING;

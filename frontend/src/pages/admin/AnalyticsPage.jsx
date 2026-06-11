@@ -1,11 +1,30 @@
-const stats = [
-  { label: 'Total users', value: '3,241', change: '+12% this month' },
-  { label: 'Active topics', value: '12', change: '2 created this week' },
-  { label: 'Contributions', value: '8,904', change: '+340 this week' },
-  { label: 'Total donations', value: 'KES 1.2M', change: '+KES 84K this month' },
-]
+import { useEffect, useState } from 'react'
+import { moderation } from '../../services/api.js'
 
 export default function AdminAnalyticsPage() {
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    moderation.getStats()
+      .then(({ data }) => setStats(data))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const cards = stats ? [
+    { label: 'Total users',         value: stats.users?.total?.toLocaleString() ?? '—' },
+    { label: 'Active topics',       value: stats.topics?.active?.toLocaleString() ?? '—' },
+    { label: 'Total contributions', value: stats.contributions?.total?.toLocaleString() ?? '—' },
+    { label: 'KES raised (active)', value: stats.campaigns?.total_raised != null
+        ? `KES ${Number(stats.campaigns.total_raised).toLocaleString()}`
+        : '—' },
+    { label: 'Pending proposals',   value: stats.proposals?.pending?.toLocaleString() ?? '—' },
+    { label: 'Open flags',          value: stats.flags?.open?.toLocaleString() ?? '—' },
+    { label: 'Banned users',        value: stats.users?.banned?.toLocaleString() ?? '—' },
+    { label: 'Active campaigns',    value: stats.campaigns?.total?.toLocaleString() ?? '—' },
+  ] : Array(8).fill({ label: '…', value: '…' })
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
@@ -13,29 +32,13 @@ export default function AdminAnalyticsPage() {
         <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 2 }}>Platform-wide statistics</p>
       </div>
 
-      {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 32 }}>
-        {stats.map((s) => (
-          <div key={s.label} className="card" style={{ padding: '20px 24px' }}>
-            <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--color-terracotta)' }}>{s.value}</div>
-            <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 12, color: 'var(--color-sage)', marginTop: 4 }}>{s.change}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Chart placeholders */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        {['Signups over time', 'Donations over time'].map((title) => (
-          <div key={title} className="card" style={{ padding: 20 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>{title}</h3>
-            <div style={{
-              height: 180, background: 'var(--color-light-gray)', borderRadius: 'var(--radius-md)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--color-text-muted)', fontSize: 13,
-            }}>
-              Chart placeholder — connect to analytics API
+        {cards.map((s, i) => (
+          <div key={i} className="card" style={{ padding: '20px 24px' }}>
+            <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--color-terracotta)' }}>
+              {loading ? '…' : s.value}
             </div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4 }}>{s.label}</div>
           </div>
         ))}
       </div>
