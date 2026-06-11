@@ -71,6 +71,7 @@ api.interceptors.response.use(
     try {
       const { data } = await api.post('/api/auth/refresh')
       if (data?.accessToken) useAuthStore.getState().setToken(data.accessToken)
+      delete original.headers['Authorization']
       drainQueue(null)
       return api(original)
     } catch (refreshErr) {
