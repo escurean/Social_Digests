@@ -40,15 +40,19 @@ ON CONFLICT (key) DO NOTHING;
 
 -- Static pages
 CREATE TABLE IF NOT EXISTS static_pages (
-  id             SERIAL PRIMARY KEY,
-  slug           TEXT UNIQUE NOT NULL,
-  title          TEXT NOT NULL,
-  content        TEXT NOT NULL DEFAULT '',
-  show_in_footer BOOLEAN DEFAULT false,
-  created_by     INT REFERENCES users(id) ON DELETE SET NULL,
-  updated_by     INT REFERENCES users(id) ON DELETE SET NULL,
-  created_at     TIMESTAMPTZ DEFAULT NOW(),
-  updated_at     TIMESTAMPTZ DEFAULT NOW()
+  id               SERIAL PRIMARY KEY,
+  slug             TEXT UNIQUE NOT NULL,
+  title            TEXT NOT NULL,
+  content          TEXT NOT NULL DEFAULT '',
+  show_in_footer   BOOLEAN DEFAULT false,
+  show_in_header   BOOLEAN DEFAULT false,
+  meta_title       VARCHAR(255),
+  meta_description TEXT,
+  is_published     BOOLEAN DEFAULT true,
+  created_by       INT REFERENCES users(id) ON DELETE SET NULL,
+  updated_by       INT REFERENCES users(id) ON DELETE SET NULL,
+  created_at       TIMESTAMPTZ DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE UNIQUE INDEX IF NOT EXISTS static_pages_slug_idx ON static_pages(slug);
 
