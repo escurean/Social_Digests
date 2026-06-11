@@ -49,4 +49,9 @@ postgres_data/
 # Root lockfile only (sub-project lockfiles are committed)
 /package-lock.json
 
+
 .*
+.env.example/
+
+# Claude
+.claude/
