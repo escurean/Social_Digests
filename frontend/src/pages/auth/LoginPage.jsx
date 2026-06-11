@@ -18,8 +18,8 @@ export default function LoginPage() {
   const from = location.state?.from?.pathname || '/'
   const googleBtnRef = useRef(null)
 
-  const handleSuccess = (user) => {
-    login(user)
+  const handleSuccess = (user, token) => {
+    login(user, token)
     addToast({ message: `Welcome back, ${user.name}!`, type: 'success' })
     navigate(from, { replace: true })
   }
@@ -36,7 +36,7 @@ export default function LoginPage() {
           setLoading(true)
           try {
             const { data } = await auth.google(credential)
-            handleSuccess(data.user)
+            handleSuccess(data.user, data.accessToken)
           } catch (err) {
             setError(err.response?.data?.error || 'Google sign-in failed.')
           } finally {
@@ -62,7 +62,7 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const { data } = await auth.login(form)
-      handleSuccess(data.user)
+      handleSuccess(data.user, data.accessToken)
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid email or password.')
     } finally {

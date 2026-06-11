@@ -13,10 +13,22 @@ export const strapiApi = axios.create({
   baseURL: STRAPI_URL,
 })
 
+// ── Authorization header injector ────────────────────────────
+// Attaches the in-memory access token as a Bearer header on every request.
+// This makes auth work even when cross-origin cookies are blocked (e.g. on
+// Railway where frontend and backend live on different subdomains).
+api.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken
+  if (token && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 // ── Refresh token interceptor ─────────────────────────────────
 // When a request gets a 401 the interceptor:
 //   1. Calls POST /api/auth/refresh (browser sends refresh_token cookie)
-//   2. On success — retries the original request (access_token cookie is now fresh)
+//   2. On success — stores new in-memory token + retries the original request
 //   3. On failure — logs the user out
 //
 // Concurrent 401s are queued and replayed together after a single refresh,
@@ -57,7 +69,8 @@ api.interceptors.response.use(
     isRefreshing = true
 
     try {
-      await api.post('/api/auth/refresh')
+      const { data } = await api.post('/api/auth/refresh')
+      if (data?.accessToken) useAuthStore.getState().setToken(data.accessToken)
       drainQueue(null)
       return api(original)
     } catch (refreshErr) {
