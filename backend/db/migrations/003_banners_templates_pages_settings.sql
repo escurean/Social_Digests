@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
   updated_by  INT REFERENCES users(id) ON DELETE SET NULL,
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS email_templates_key_idx ON email_templates(key);
 
 INSERT INTO email_templates (key, subject, description, is_active) VALUES
   ('welcome',               'Welcome to Social Digests, {{user_name}}!',       'Sent on registration',                       true),
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS static_pages (
   created_at     TIMESTAMPTZ DEFAULT NOW(),
   updated_at     TIMESTAMPTZ DEFAULT NOW()
 );
+CREATE UNIQUE INDEX IF NOT EXISTS static_pages_slug_idx ON static_pages(slug);
 
 INSERT INTO static_pages (slug, title, content, show_in_footer) VALUES
   ('about-us', 'About us',

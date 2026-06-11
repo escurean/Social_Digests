@@ -34,9 +34,19 @@ async function run() {
 
       console.log(`[migrate] apply ${file}`)
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8')
+      // Split into individual statements so each is planned independently.
+      // Strips -- line comments and blank lines, then splits on semicolons.
+      const statements = sql
+        .replace(/--[^\n]*/g, '')
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0)
+
       await client.query('BEGIN')
       try {
-        await client.query(sql)
+        for (const stmt of statements) {
+          await client.query(stmt)
+        }
         await client.query(
           'INSERT INTO schema_migrations (filename) VALUES ($1)', [file]
         )
