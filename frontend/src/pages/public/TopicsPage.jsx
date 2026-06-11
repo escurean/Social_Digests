@@ -11,10 +11,9 @@ export default function TopicsPage() {
   const [loading, setLoading]               = useState(true)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
-  // Load categories from Strapi
   useEffect(() => {
     cmsApi.categories.list()
-      .then(({ data }) => setCategoryList(normalizeList(data)))
+      .then(({ data }) => setCategoryList(data.categories ?? []))
       .catch(() => {})
   }, [])
 

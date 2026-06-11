@@ -29,6 +29,7 @@ import emailTemplatesRoutes from './routes/email_templates.js'
 import pagesRoutes from './routes/pages.js'
 import settingsRoutes from './routes/settings.js'
 import statsRoutes from './routes/stats.js'
+import webhookRoutes from './routes/webhooks.js'
 import errorHandler from './middleware/errorHandler.js'
 import { registerLimiter, loginLimiter, forgotPasswordLimiter } from './middleware/rateLimiters.js'
 
@@ -84,8 +85,9 @@ app.use(cors({
 
 // ── Parsing ───────────────────────────────────────────────────
 app.use(cookieParser())
-// Raw body for Stripe webhooks (must come before express.json())
+// Raw body for webhook signature verification (must come before express.json())
 app.use('/api/donations/stripe/webhook', express.raw({ type: 'application/json' }))
+app.use('/api/webhooks/strapi',          express.raw({ type: 'application/json' }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -133,6 +135,7 @@ app.use('/api/email-templates', emailTemplatesRoutes)
 app.use('/api/pages',          pagesRoutes)
 app.use('/api/settings',       settingsRoutes)
 app.use('/api/stats',          statsRoutes)
+app.use('/api/webhooks',       webhookRoutes)
 app.use('/api',                contributionsRoutes)
 app.use('/api/proposals',      proposalsRoutes)
 app.use('/api/donations',      donationsRoutes)

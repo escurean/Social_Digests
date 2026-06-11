@@ -244,12 +244,16 @@ export async function updateTopic(req, res, next) {
     // Sync to Express
     await query(
       `UPDATE topics SET
-         title       = COALESCE($1, title),
-         status      = COALESCE($2, status),
-         is_featured = COALESCE($3, is_featured),
-         updated_at  = NOW()
-       WHERE slug = $4`,
-      [title?.trim() ?? null, status ?? null, is_featured !== undefined ? is_featured : null, slug]
+         title         = COALESCE($1, title),
+         status        = COALESCE($2, status),
+         is_featured   = COALESCE($3, is_featured),
+         category_slug = CASE WHEN $4::text IS NOT NULL THEN $4 ELSE category_slug END,
+         updated_at    = NOW()
+       WHERE slug = $5`,
+      [title?.trim() ?? null, status ?? null,
+       is_featured !== undefined ? is_featured : null,
+       category_slug !== undefined ? (category_slug || null) : null,
+       slug]
     )
 
     topic.category_slug = category_slug ?? topic.category?.slug ?? null

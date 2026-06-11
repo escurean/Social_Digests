@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { cmsAdmin, content as cmsContent } from '../../services/api.js'
-import { normalizeList, getImages, getImageUrl } from '../../utils/strapi.js'
+import { getImages, getImageUrl } from '../../utils/strapi.js'
 import useToastStore from '../../store/toastStore.js'
 
 export default function AdminTopicNewPage() {
@@ -24,7 +24,7 @@ export default function AdminTopicNewPage() {
 
   useEffect(() => {
     cmsContent.categories.list()
-      .then(({ data }) => setCategoryList(normalizeList(data)))
+      .then(({ data }) => setCategoryList(data.categories ?? []))
       .catch(() => {})
 
     if (isEditing) {

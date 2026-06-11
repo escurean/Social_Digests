@@ -289,12 +289,9 @@ export const content = {
     }),
   },
   categories: {
-    list: () => strapiApi.get('/api/topic-categories', {
-      params: {
-        'filters[is_active][$eq]': true,
-        'sort': 'sort_order:asc',
-      },
-    }),
+    // Express backend is the single source of truth for categories.
+    // Strapi's topic-categories content type is not used.
+    list: () => api.get('/api/categories'),
   },
   banners: {
     active: () => strapiApi.get('/api/banners', {
