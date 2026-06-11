@@ -19,11 +19,19 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
 -- ── Sessions ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS sessions (
-  id          SERIAL PRIMARY KEY,
-  user_id     INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  token_hash  VARCHAR(255) NOT NULL,
-  expires_at  TIMESTAMPTZ NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                SERIAL PRIMARY KEY,
+  user_id           INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  token_hash        VARCHAR(255),
+  refresh_token_hash VARCHAR(255),
+  is_revoked        BOOLEAN NOT NULL DEFAULT false,
+  expires_at        TIMESTAMPTZ NOT NULL,
+  user_agent        TEXT,
+  ip_address        INET,
+  device_info       TEXT,
+  gateway_reference VARCHAR(255),
+  last_used_at      TIMESTAMPTZ,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ── Contributions ─────────────────────────────────────────────
