@@ -37,7 +37,9 @@ function setAccessCookie(res, token) {
   res.cookie('access_token', token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    // 'none' is required when frontend and backend are on different Railway
+    // subdomains (cross-site). 'lax' suffices for same-origin dev.
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 15 * 60 * 1000,
   })
 }
@@ -47,7 +49,7 @@ function setRefreshCookie(res, token) {
   res.cookie('refresh_token', token, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
+    sameSite: isProduction ? 'none' : 'lax',
     path: '/api/auth/refresh',
     maxAge: REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
   })
@@ -324,8 +326,10 @@ export async function logout(req, res, next) {
       const tokenHash = hashToken(rawToken)
       await query('UPDATE sessions SET is_revoked = true WHERE refresh_token_hash = $1', [tokenHash])
     }
-    res.clearCookie('access_token')
-    res.clearCookie('refresh_token', { path: '/api/auth/refresh' })
+    const isProduction = process.env.NODE_ENV === 'production'
+    const cookieOpts = { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax' }
+    res.clearCookie('access_token', cookieOpts)
+    res.clearCookie('refresh_token', { ...cookieOpts, path: '/api/auth/refresh' })
     res.json({ message: 'Logged out.' })
   } catch (err) {
     next(err)
