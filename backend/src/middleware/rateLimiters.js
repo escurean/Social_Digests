@@ -80,6 +80,7 @@ export const proposalLimiter = rateLimit({
   keyGenerator: (req) => req.user?.id?.toString() || req.ip,
   message: { error: 'Too many proposals. Try again tomorrow.' },
   store: makeStore('proposals', DAY),
+  skipFailedRequests: true,
   passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
