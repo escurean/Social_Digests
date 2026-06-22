@@ -50,17 +50,17 @@ const useAuthStore = create(
         const { isAuthenticated, accessToken } = get()
         if (!isAuthenticated) return
 
+        // After a page refresh, accessToken is null (in-memory only, never persisted).
+        // Always do a refresh first so the Bearer token is populated before any API
+        // call. On Railway (cross-origin), cookies alone can be blocked by the browser,
+        // so having an in-memory token is required for the Authorization header to work.
         let token = accessToken
-        let user = await fetchMe(token)
-        if (!user) {
-          // Access token expired or missing — try to refresh
+        if (!token) {
           token = await tryRefresh()
-          if (token) {
-            set({ accessToken: token })
-            user = await fetchMe(token)
-          }
+          if (token) set({ accessToken: token })
         }
 
+        const user = await fetchMe(token)
         if (user) {
           set({ user, isAuthenticated: true })
         } else {
