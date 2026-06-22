@@ -83,7 +83,8 @@ export default function AdminUsersPage() {
         ) : userList.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>No users found.</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
                 {['Name / Email', 'Role', 'Contributions', 'Joined', 'Status', ''].map((h) => (
@@ -153,6 +154,7 @@ export default function AdminUsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
