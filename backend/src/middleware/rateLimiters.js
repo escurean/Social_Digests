@@ -8,9 +8,8 @@ function redisStore(prefix) {
       const rKey = `rl:${prefix}:${key}`
       const current = await redis.incr(rKey)
       if (current === 1) {
-        // Set expiry only on first increment (avoids resetting window)
-        const ttl = this.windowMs / 1000
-        await redis.expire(rKey, ttl)
+        const windowSecs = Math.ceil(this.windowMs / 1000)
+        await redis.expire(rKey, windowSecs)
       }
       const ttl = await redis.ttl(rKey)
       return { totalHits: current, resetTime: new Date(Date.now() + ttl * 1000) }
@@ -39,6 +38,7 @@ export const registerLimiter = rateLimit({
   max: 5,
   message: { error: 'Too many registration attempts. Try again in 1 hour.' },
   store: makeStore('register', HOUR),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -48,6 +48,7 @@ export const loginLimiter = rateLimit({
   max: 10,
   message: { error: 'Too many login attempts. Try again in 15 minutes.' },
   store: makeStore('login', 15 * MIN),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -57,6 +58,7 @@ export const forgotPasswordLimiter = rateLimit({
   max: 5,
   message: { error: 'Too many password reset requests. Try again in 1 hour.' },
   store: makeStore('forgot', HOUR),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -67,6 +69,7 @@ export const contributionLimiter = rateLimit({
   keyGenerator: (req) => req.user?.id?.toString() || req.ip,
   message: { error: 'Too many contributions. Try again in 1 hour.' },
   store: makeStore('contributions', HOUR),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -77,6 +80,7 @@ export const proposalLimiter = rateLimit({
   keyGenerator: (req) => req.user?.id?.toString() || req.ip,
   message: { error: 'Too many proposals. Try again tomorrow.' },
   store: makeStore('proposals', DAY),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -86,6 +90,7 @@ export const donationInitiateLimiter = rateLimit({
   max: 10,
   message: { error: 'Too many donation attempts. Try again in 1 hour.' },
   store: makeStore('donations', HOUR),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -96,6 +101,7 @@ export const flagLimiter = rateLimit({
   keyGenerator: (req) => req.user?.id?.toString() || req.ip,
   message: { error: 'Too many flags submitted. Try again in 1 hour.' },
   store: makeStore('flags', HOUR),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
@@ -105,6 +111,7 @@ export const searchLimiter = rateLimit({
   max: 30,
   message: { error: 'Too many search requests. Slow down.' },
   store: makeStore('search', MIN),
+  passOnStoreError: true,
   standardHeaders: true,
   legacyHeaders: false,
 })
