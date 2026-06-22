@@ -18,6 +18,7 @@ export default function AdminTopicNewPage() {
   const [removedIds, setRemovedIds]         = useState(new Set()) // strapiIds to remove
   const [uploading, setUploading]           = useState(false)
   const [loading, setLoading]               = useState(false)
+  const [submitError, setSubmitError]       = useState('')
   const fileInputRef = useRef(null)
   const addToast  = useToastStore((s) => s.addToast)
   const navigate  = useNavigate()
@@ -75,6 +76,7 @@ export default function AdminTopicNewPage() {
 
     setLoading(true)
     setUploading(pendingFiles.length > 0)
+    setSubmitError('')
 
     try {
       // 1. Upload new images to Strapi
@@ -103,7 +105,9 @@ export default function AdminTopicNewPage() {
       }
       navigate('/admin/topics')
     } catch (err) {
-      addToast({ message: err.message || err.response?.data?.error || 'Failed to save topic.', type: 'error' })
+      const msg = err.response?.data?.error || err.message || 'Failed to save topic.'
+      setSubmitError(msg)
+      addToast({ message: msg, type: 'error' })
     } finally {
       setLoading(false)
       setUploading(false)
@@ -271,6 +275,9 @@ export default function AdminTopicNewPage() {
         <button className="btn-primary" type="submit" disabled={loading} style={{ padding: '11px 28px' }}>
           {uploading ? 'Uploading images…' : loading ? 'Saving…' : isEditing ? 'Save changes' : 'Create topic'}
         </button>
+        {submitError && (
+          <p style={{ marginTop: 10, color: 'var(--color-terracotta)', fontSize: 13 }}>{submitError}</p>
+        )}
       </form>
     </div>
   )

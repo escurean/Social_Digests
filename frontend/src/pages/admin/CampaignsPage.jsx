@@ -7,14 +7,19 @@ import useToastStore from '../../store/toastStore.js'
 export default function AdminCampaignsPage() {
   const [list, setList]         = useState([])
   const [loading, setLoading]   = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [deleting, setDeleting] = useState(null)
   const addToast = useToastStore((s) => s.addToast)
 
   const load = () => {
     setLoading(true)
+    setLoadError(false)
     cmsAdmin.campaigns.list()
       .then(({ data }) => setList(data.campaigns))
-      .catch(() => addToast({ message: 'Failed to load campaigns.', type: 'error' }))
+      .catch(() => {
+        setLoadError(true)
+        addToast({ message: 'Failed to load campaigns.', type: 'error' })
+      })
       .finally(() => setLoading(false))
   }
 
@@ -59,6 +64,11 @@ export default function AdminCampaignsPage() {
 
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading…</div>
+      ) : loadError ? (
+        <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+          <p style={{ marginBottom: 12 }}>Failed to load campaigns. Check the Strapi connection.</p>
+          <button className="btn-secondary" onClick={load}>Retry</button>
+        </div>
       ) : list.length === 0 ? (
         <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
           No campaigns yet. <Link to="/admin/campaigns/new" style={{ color: 'var(--color-terracotta)' }}>Create one</Link>.

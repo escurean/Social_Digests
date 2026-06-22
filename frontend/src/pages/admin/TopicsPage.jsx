@@ -7,14 +7,19 @@ import useToastStore from '../../store/toastStore.js'
 export default function AdminTopicsPage() {
   const [topicList, setTopicList] = useState([])
   const [loading, setLoading]     = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [deleting, setDeleting]   = useState(null)
   const addToast = useToastStore((s) => s.addToast)
 
   const load = () => {
     setLoading(true)
+    setLoadError(false)
     cmsAdmin.topics.list()
       .then(({ data }) => setTopicList(data.topics))
-      .catch(() => addToast({ message: 'Failed to load topics.', type: 'error' }))
+      .catch(() => {
+        setLoadError(true)
+        addToast({ message: 'Failed to load topics.', type: 'error' })
+      })
       .finally(() => setLoading(false))
   }
 
@@ -70,6 +75,11 @@ export default function AdminTopicsPage() {
       <div className="card">
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading…</div>
+        ) : loadError ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+            <p style={{ marginBottom: 12 }}>Failed to load topics. Check the Strapi connection.</p>
+            <button className="btn-secondary" onClick={load}>Retry</button>
+          </div>
         ) : topicList.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
             No topics yet. <Link to="/admin/topics/new" style={{ color: 'var(--color-terracotta)' }}>Create one</Link>.

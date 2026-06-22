@@ -19,6 +19,7 @@ export default function AdminCampaignNewPage() {
   const [removedIds, setRemovedIds]         = useState(new Set())
   const [uploading, setUploading]           = useState(false)
   const [loading, setLoading]               = useState(false)
+  const [submitError, setSubmitError]       = useState('')
   const fileInputRef = useRef(null)
   const addToast = useToastStore((s) => s.addToast)
   const navigate = useNavigate()
@@ -79,6 +80,7 @@ export default function AdminCampaignNewPage() {
 
     setLoading(true)
     setUploading(pendingFiles.length > 0)
+    setSubmitError('')
 
     try {
       const newMediaIds = []
@@ -108,7 +110,9 @@ export default function AdminCampaignNewPage() {
       }
       navigate('/admin/campaigns')
     } catch (err) {
-      addToast({ message: err.message || err.response?.data?.error || 'Failed to save campaign.', type: 'error' })
+      const msg = err.response?.data?.error || err.message || 'Failed to save campaign.'
+      setSubmitError(msg)
+      addToast({ message: msg, type: 'error' })
     } finally {
       setLoading(false)
       setUploading(false)
@@ -302,6 +306,9 @@ export default function AdminCampaignNewPage() {
         <button className="btn-primary" type="submit" disabled={loading} style={{ padding: '11px 28px' }}>
           {uploading ? 'Uploading images…' : loading ? 'Saving…' : isEditing ? 'Save changes' : 'Create campaign'}
         </button>
+        {submitError && (
+          <p style={{ marginTop: 10, color: 'var(--color-terracotta)', fontSize: 13 }}>{submitError}</p>
+        )}
       </form>
     </div>
   )
