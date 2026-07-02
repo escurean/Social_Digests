@@ -214,11 +214,9 @@ export async function stripeWebhook(req, res) {
 export async function mpesaCallback(req, res) {
   // FIX #2: reject requests not originating from Safaricom's known IP ranges.
   // trust proxy = 1 (FIX #4) ensures req.ip is the real client IP behind nginx.
-  if (process.env.NODE_ENV === 'production' && !isAllowedSafaricomIP(req.ip)) {
-    logger.warn(
-      { event: 'mpesa.callback_ip_rejected', ip: req.ip, body: req.body },
-      'M-Pesa callback rejected: IP not in Safaricom allowlist'
-    )
+  // Only enforce IP allowlist in production AND only for production M-Pesa
+  if (process.env.NODE_ENV === 'production' && process.env.MPESA_ENV === 'production' && !isAllowedSafaricomIP(req.ip)) {
+    logger.warn({ event: 'mpesa.callback_ip_rejected', ip: req.ip, body: req.body })
     return res.status(403).json({ ResultCode: 1, ResultDesc: 'Forbidden' })
   }
 
