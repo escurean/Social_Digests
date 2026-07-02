@@ -220,26 +220,25 @@ export const cmsAdmin = {
     update: (slug, data)   => api.put(`/api/cms/campaigns/${slug}`, data),
     remove: (slug)         => api.delete(`/api/cms/campaigns/${slug}`),
   },
-uploadImage: async (e) => {
-  const t = new FormData()
-  t.append("files", e)
+  uploadImage: async (file) => {
+    const formData = new FormData()
+    formData.append('files', file)
 
-  // Get the access token from the auth store
-  const accessToken = B.getState().accessToken  // use however you import the store
+    const accessToken = useAuthStore.getState().accessToken
 
-  const n = await fetch(`${API_BASE_URL}/api/cms/upload`, {
-    method: "POST",
-    credentials: "include",
-    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-    body: t
-  })
+    const response = await fetch(`${API_URL}/api/cms/upload`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      body: formData,
+    })
 
-  if (!n.ok) {
-    const s = await n.json().catch(() => ({}))
-    throw new Error(s?.error?.message || s?.error || "Image upload failed.")
-  }
-  return n.json()
-},
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data?.error?.message || data?.error || 'Image upload failed.')
+    }
+    return response.json()
+  },
 }
 
 // ── Public content (direct Strapi reads — no auth required) ───
