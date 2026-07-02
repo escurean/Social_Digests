@@ -220,21 +220,26 @@ export const cmsAdmin = {
     update: (slug, data)   => api.put(`/api/cms/campaigns/${slug}`, data),
     remove: (slug)         => api.delete(`/api/cms/campaigns/${slug}`),
   },
-  uploadImage: async (file) => {
-    const form = new FormData()
-    form.append('files', file)
-    // credentials: 'include' sends the httpOnly access_token cookie
-    const res = await fetch(`${API_URL}/api/cms/upload`, {
-      method: 'POST',
-      credentials: 'include',
-      body: form,
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message || err?.error || 'Image upload failed.')
-    }
-    return res.json()
-  },
+uploadImage: async (e) => {
+  const t = new FormData()
+  t.append("files", e)
+
+  // Get the access token from the auth store
+  const accessToken = B.getState().accessToken  // use however you import the store
+
+  const n = await fetch(`${API_BASE_URL}/api/cms/upload`, {
+    method: "POST",
+    credentials: "include",
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: t
+  })
+
+  if (!n.ok) {
+    const s = await n.json().catch(() => ({}))
+    throw new Error(s?.error?.message || s?.error || "Image upload failed.")
+  }
+  return n.json()
+},
 }
 
 // ── Public content (direct Strapi reads — no auth required) ───
