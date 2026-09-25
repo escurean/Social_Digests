@@ -83,7 +83,8 @@ services:
     name: social-digests-web
     runtime: static
     rootDir: frontend
-    buildCommand: npm ci && VITE_API_URL=https://$API_HOST npm run build
+    # API_HOST is Render's internal hostname (e.g. social-digests-api-esl7), so add the public domain
+    buildCommand: npm ci && VITE_API_URL=https://${API_HOST}.onrender.com npm run build
     staticPublishPath: dist
     envVars:
       - key: API_HOST
