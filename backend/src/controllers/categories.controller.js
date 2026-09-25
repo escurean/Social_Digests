@@ -1,22 +1,5 @@
 import { query } from '../config/db.js'
 
-const STRAPI_URL = process.env.STRAPI_URL || 'http://localhost:1337'
-
-async function strapiSync(method, path, body = null) {
-  const token = process.env.STRAPI_API_TOKEN
-  if (!token) return
-  try {
-    const opts = {
-      method,
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    }
-    if (body) opts.body = JSON.stringify(body)
-    await fetch(`${STRAPI_URL}${path}`, opts)
-  } catch {
-    // Non-fatal — Express DB is authoritative for categories
-  }
-}
-
 export async function list(req, res, next) {
   try {
     const { rows } = await query(
@@ -42,9 +25,6 @@ export async function create(req, res, next) {
       [slug.trim(), name.trim(), description?.trim() || null]
     )
 
-    await strapiSync('POST', '/api/topic-categories', {
-      data: { slug: slug.trim(), name: name.trim(), is_active: true, publishedAt: new Date().toISOString() },
-    })
 
     res.status(201).json(cat)
   } catch (err) {
@@ -67,21 +47,6 @@ export async function update(req, res, next) {
     )
     if (!cat) return res.status(404).json({ error: 'Category not found.' })
 
-    // Sync name change to Strapi
-    const strapiRes = await fetch(
-      `${STRAPI_URL}/api/topic-categories?filters[slug][$eq]=${slug}`,
-      { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}` } }
-    ).catch(() => null)
-    if (strapiRes?.ok) {
-      const strapiData = await strapiRes.json().catch(() => null)
-      const strapiId = strapiData?.data?.[0]?.id
-      if (strapiId) {
-        await strapiSync('PUT', `/api/topic-categories/${strapiId}`, {
-          data: { name: cat.name },
-        })
-      }
-    }
-
     res.json(cat)
   } catch (err) {
     next(err)
@@ -94,17 +59,6 @@ export async function remove(req, res, next) {
     const { rows: [cat] } = await query('SELECT id FROM categories WHERE slug = $1', [slug])
     if (!cat) return res.status(404).json({ error: 'Category not found.' })
     await query('DELETE FROM categories WHERE slug = $1', [slug])
-
-    // Sync deletion to Strapi
-    const strapiRes = await fetch(
-      `${STRAPI_URL}/api/topic-categories?filters[slug][$eq]=${slug}`,
-      { headers: { Authorization: `Bearer ${process.env.STRAPI_API_TOKEN}` } }
-    ).catch(() => null)
-    if (strapiRes?.ok) {
-      const strapiData = await strapiRes.json().catch(() => null)
-      const strapiId = strapiData?.data?.[0]?.id
-      if (strapiId) await strapiSync('DELETE', `/api/topic-categories/${strapiId}`)
-    }
 
     res.json({ message: 'Category deleted.' })
   } catch (err) {

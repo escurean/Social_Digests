@@ -62,7 +62,7 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Fetch active campaign content from Strapi, then augment with donation stats from Express
+    // Fetch active campaigns, then augment with donation stats from Express
     cmsApi.campaigns.active()
       .then(async ({ data }) => {
         const campaigns = normalizeList(data)

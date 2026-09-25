@@ -66,7 +66,7 @@ export default function AdminTopicsPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600 }}>Topics</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 2 }}>
-            {topicList.length} topic{topicList.length !== 1 ? 's' : ''} · managed via Strapi CMS
+            {topicList.length} topic{topicList.length !== 1 ? 's' : ''}
           </p>
         </div>
         <Link to="/admin/topics/new" className="btn-primary">+ New topic</Link>
@@ -77,7 +77,7 @@ export default function AdminTopicsPage() {
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading…</div>
         ) : loadError ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-            <p style={{ marginBottom: 12 }}>Failed to load topics. Check the Strapi connection.</p>
+            <p style={{ marginBottom: 12 }}>Failed to load topics. Please try again.</p>
             <button className="btn-secondary" onClick={load}>Retry</button>
           </div>
         ) : topicList.length === 0 ? (

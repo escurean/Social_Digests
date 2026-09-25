@@ -2,15 +2,10 @@ import axios from 'axios'
 import useAuthStore from '../store/authStore.js'
 
 const API_URL    = import.meta.env.VITE_API_URL    || 'http://localhost:3001'
-const STRAPI_URL = import.meta.env.VITE_STRAPI_URL || 'http://localhost:1337'
 
 export const api = axios.create({
   baseURL: API_URL,
   withCredentials: true, // sends httpOnly cookies automatically
-})
-
-export const strapiApi = axios.create({
-  baseURL: STRAPI_URL,
 })
 
 // ── Authorization header injector ────────────────────────────
@@ -135,7 +130,7 @@ export const platformStats = {
 }
 
 // ── Campaigns — financial stats only (Express) ───────────────
-// Content is fetched from Strapi via `content.campaigns` or `cmsAdmin.campaigns`.
+// Public content is read via `content.campaigns` (Express); admin writes go via `cmsAdmin.campaigns`.
 // This namespace is retained for the donation stats endpoint used by CampaignDetailPage.
 export const campaigns = {
   stats: (slug) => api.get(`/api/campaigns/${slug}/stats`),
@@ -203,130 +198,92 @@ export const siteSettings = {
   uploadLogo: (logo_url)  => api.post('/api/settings/logo', { logo_url }),
 }
 
-// ── CMS Admin proxy (Express → Strapi, token stays server-side) ──
-// Used by all admin pages that manage Topics and Campaigns.
+// ── Admin content management (Express) ───────────────────────
+// Used by the admin pages that manage Topics and Campaigns. Reads under
+// /api/admin include drafts; writes use the regular admin-only routes.
 export const cmsAdmin = {
   topics: {
-    list:   ()             => api.get('/api/cms/topics'),
-    get:    (slug)         => api.get(`/api/cms/topics/${slug}`),
-    create: (data)         => api.post('/api/cms/topics', data),
-    update: (slug, data)   => api.put(`/api/cms/topics/${slug}`, data),
-    remove: (slug)         => api.delete(`/api/cms/topics/${slug}`),
+    list:   ()             => api.get('/api/admin/topics', { params: { limit: 100 } }),
+    get:    (slug)         => api.get(`/api/admin/topics/${encodeURIComponent(slug)}`),
+    create: (data)         => api.post('/api/topics', data),
+    update: (slug, data)   => api.patch(`/api/topics/${encodeURIComponent(slug)}`, data),
+    remove: (slug)         => api.delete(`/api/topics/${encodeURIComponent(slug)}`),
   },
   campaigns: {
-    list:   ()             => api.get('/api/cms/campaigns'),
-    get:    (slug)         => api.get(`/api/cms/campaigns/${slug}`),
-    create: (data)         => api.post('/api/cms/campaigns', data),
-    update: (slug, data)   => api.put(`/api/cms/campaigns/${slug}`, data),
-    remove: (slug)         => api.delete(`/api/cms/campaigns/${slug}`),
+    list:   ()             => api.get('/api/admin/campaigns', { params: { limit: 50 } }),
+    get:    (slug)         => api.get(`/api/admin/campaigns/${encodeURIComponent(slug)}`),
+    create: (data)         => api.post('/api/campaigns', data),
+    update: (slug, data)   => api.patch(`/api/campaigns/${encodeURIComponent(slug)}`, data),
+    remove: (slug)         => api.delete(`/api/campaigns/${encodeURIComponent(slug)}`),
   },
+  // Resolves to the stored image object ({ id, url, formats, width, height, name }).
   uploadImage: async (file) => {
     const formData = new FormData()
-    formData.append('files', file)
-
-    const accessToken = useAuthStore.getState().accessToken
-
-    const response = await fetch(`${API_URL}/api/cms/upload`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
-      body: formData,
-    })
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}))
-      throw new Error(data?.error?.message || data?.error || 'Image upload failed.')
+    formData.append('file', file)
+    try {
+      const { data } = await api.post('/api/uploads', formData)
+      return data
+    } catch (err) {
+      throw new Error(err.response?.data?.error || 'Image upload failed.')
     }
-    return response.json()
   },
 }
 
-// ── Public content (direct Strapi reads — no auth required) ───
-// Public pages use these to read CMS-managed content.
-// Responses must be normalized with normalizeList / normalizeItem
-// from frontend/src/utils/strapi.js before use.
+// ── Public content (Express reads — no auth required) ────────
+// Topics and campaigns are served from Postgres; admins edit them via `cmsAdmin`.
+//
+// Each method resolves to { data: { data: [...] } } — a list of flat objects in
+// the shape the pages already consume through normalizeList() from
+// frontend/src/utils/strapi.js (which passes flat items through unchanged).
+const toList = (res, items) => ({ ...res, data: { data: items } })
+
+// Express row → UI shape (camelCase createdAt, category relation object).
+const adaptTopic = (t) => ({
+  ...t,
+  createdAt: t.created_at,
+  category: t.category_slug ? { slug: t.category_slug, name: t.category_name } : null,
+  images: t.images ?? [],
+})
+const adaptCampaign = (c) => ({ ...c, createdAt: c.created_at, images: c.images ?? [] })
+
+// A 404 becomes an empty list so pages show their own "not found" handling.
+const emptyOn404 = (err) => {
+  if (err.response?.status === 404) return toList(err.response, [])
+  throw err
+}
+
 export const content = {
   topics: {
-    list: (params = {}) => strapiApi.get('/api/topics', {
-      params: {
-        'populate[images]': '*',
-        'populate[category]': '*',
-        'pagination[pageSize]': 50,
-        'sort': 'createdAt:desc',
-        ...params,
-      },
-    }),
-    get: (slug) => strapiApi.get('/api/topics', {
-      params: {
-        'filters[slug][$eq]': slug,
-        'populate[images]': '*',
-        'populate[category]': '*',
-      },
-    }),
-    featured: () => strapiApi.get('/api/topics', {
-      params: {
-        'filters[is_featured][$eq]': true,
-        'filters[status][$eq]': 'active',
-        'populate[images]': '*',
-        'populate[category]': '*',
-      },
-    }),
-    byTopicSlug: (topicSlug) => strapiApi.get('/api/donation-campaigns', {
-      params: {
-        'filters[topic_slug][$eq]': topicSlug,
-        'populate[images]': '*',
-      },
-    }),
+    // params: { category, status, featured, limit, page }
+    list: (params = {}) => api.get('/api/topics', { params: { limit: 50, ...params } })
+      .then((res) => toList(res, res.data.topics.map(adaptTopic))),
+    get: (slug) => api.get(`/api/topics/${encodeURIComponent(slug)}`)
+      .then((res) => toList(res, [adaptTopic(res.data)]), emptyOn404),
+    featured: () => api.get('/api/topics', { params: { featured: true, status: 'active' } })
+      .then((res) => toList(res, res.data.topics.map(adaptTopic))),
+    byTopicSlug: (topicSlug) => content.campaigns.byTopicSlug(topicSlug),
   },
   campaigns: {
-    list: (params = {}) => strapiApi.get('/api/donation-campaigns', {
-      params: {
-        'populate[images]': '*',
-        'pagination[pageSize]': 50,
-        'sort': 'createdAt:desc',
-        ...params,
-      },
-    }),
-    get: (slug) => strapiApi.get('/api/donation-campaigns', {
-      params: {
-        'filters[slug][$eq]': slug,
-        'populate[images]': '*',
-      },
-    }),
-    byTopicSlug: (topicSlug) => strapiApi.get('/api/donation-campaigns', {
-      params: {
-        'filters[topic_slug][$eq]': topicSlug,
-        'populate[images]': '*',
-      },
-    }),
-    active: () => strapiApi.get('/api/donation-campaigns', {
-      params: {
-        'filters[status][$eq]': 'active',
-        'populate[images]': '*',
-      },
-    }),
+    list: (params = {}) => api.get('/api/campaigns', { params: { limit: 50, ...params } })
+      .then((res) => toList(res, res.data.campaigns.map(adaptCampaign))),
+    get: (slug) => api.get(`/api/campaigns/${encodeURIComponent(slug)}`)
+      .then((res) => toList(res, [adaptCampaign(res.data)]), emptyOn404),
+    byTopicSlug: (topicSlug) => content.campaigns.list({ topic_slug: topicSlug }),
+    active: () => content.campaigns.list({ status: 'active' }),
   },
   categories: {
-    // Express backend is the single source of truth for categories.
-    // Strapi's topic-categories content type is not used.
     list: () => api.get('/api/categories'),
   },
   banners: {
-    active: () => strapiApi.get('/api/banners', {
-      params: { 'filters[is_active][$eq]': true },
-    }),
+    active: () => api.get('/api/banners/active'),
   },
   pages: {
-    get:         (slug) => strapiApi.get('/api/pages', {
-      params: { 'filters[slug][$eq]': slug },
-    }),
-    footerPages: ()     => strapiApi.get('/api/pages', {
-      params: { 'filters[show_in_footer][$eq]': true },
-    }),
+    get:         (slug) => api.get(`/api/pages/${encodeURIComponent(slug)}`),
+    footerPages: ()     => api.get('/api/pages').then((res) => ({
+      ...res, data: { pages: res.data.pages.filter((p) => p.show_in_footer) },
+    })),
   },
   siteSettings: {
-    get: () => strapiApi.get('/api/site-setting', {
-      params: { 'populate[logo]': '*' },
-    }),
+    get: () => api.get('/api/settings'),
   },
 }

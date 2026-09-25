@@ -43,11 +43,11 @@ export default function TopicDetailPage() {
   useEffect(() => {
     setLoading(true)
     Promise.all([
-      // Topic content from Strapi (source of truth for title, context, images)
+      // Topic content (title, context, images)
       cmsApi.topics.get(slug),
       // Contributions from Express (social layer)
       contributionsApi.list(slug),
-      // Linked campaigns from Strapi
+      // Linked campaigns
       cmsApi.campaigns.byTopicSlug(slug),
     ]).then(async ([topicRes, contribRes, campRes]) => {
       const topics = normalizeList(topicRes.data)

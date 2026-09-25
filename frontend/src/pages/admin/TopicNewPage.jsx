@@ -12,10 +12,10 @@ export default function AdminTopicNewPage() {
     title: '', context: '', category_slug: '', status: 'draft', is_featured: false,
   })
   const [categoryList, setCategoryList]     = useState([])
-  const [existingImages, setExistingImages] = useState([])  // normalized image objects from Strapi
+  const [existingImages, setExistingImages] = useState([])  // stored image objects
   const [pendingFiles, setPendingFiles]     = useState([])  // File objects not yet uploaded
   const [pendingPreviews, setPendingPreviews] = useState([]) // object URLs for UI preview
-  const [removedIds, setRemovedIds]         = useState(new Set()) // strapiIds to remove
+  const [removedIds, setRemovedIds]         = useState(new Set()) // ids of existing images to remove
   const [uploading, setUploading]           = useState(false)
   const [loading, setLoading]               = useState(false)
   const [submitError, setSubmitError]       = useState('')
@@ -79,22 +79,19 @@ export default function AdminTopicNewPage() {
     setSubmitError('')
 
     try {
-      // 1. Upload new images to Strapi
-      const newMediaIds = []
+      // 1. Upload new images
+      const newMedia = []
       for (const file of pendingFiles) {
         const media = await cmsAdmin.uploadImage(file)
-        newMediaIds.push(media.id)
+        newMedia.push(media)
       }
       setUploading(false)
 
       // 2. Build final image ID list: kept existing + newly uploaded
-      const keptIds = existingImages
-        .filter((img) => !removedIds.has(img.id))
-        .map((img) => img.id)
-      const imageIds = [...keptIds, ...newMediaIds]
+      const images = [...existingImages.filter((img) => !removedIds.has(img.id)), ...newMedia]
 
-      // 3. Create or update topic via proxy
-      const payload = { ...form, imageIds }
+      // 3. Create or update topic 
+      const payload = { ...form, images }
 
       if (isEditing) {
         await cmsAdmin.topics.update(editSlug, payload)

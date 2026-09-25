@@ -17,13 +17,12 @@ export default function TopicsPage() {
       .catch(() => {})
   }, [])
 
-  // Load topics from Strapi whenever filter changes
+  // Load topics whenever filter changes
   useEffect(() => {
     setLoading(true)
     const params = {}
-    if (activeCategory) params['filters[category][slug][$eq]'] = activeCategory
-    // Show active + closed topics publicly; hide drafts
-    params['filters[status][$ne]'] = 'draft'
+    // Express hides drafts on public reads
+    if (activeCategory) params.category = activeCategory
 
     cmsApi.topics.list(params)
       .then(({ data }) => setTopicList(normalizeList(data)))

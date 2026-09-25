@@ -1,50 +1,25 @@
 import { query } from '../config/db.js'
 
-const STRAPI_URL = process.env.STRAPI_URL || 'http://localhost:1337'
-
 function slugify(text) {
   return text.toString().toLowerCase().trim()
     .replace(/[\s_]+/g, '-').replace(/[^\w-]/g, '').replace(/-+/g, '-').replace(/^-+|-+$/g, '')
 }
 
-async function createTopicInStrapi(proposal) {
-  const token = process.env.STRAPI_API_TOKEN
-  if (!token) return null
-  try {
-    // Resolve Strapi category ID from slug
-    let categoryId = null
-    if (proposal.category_slug) {
-      const catRes = await fetch(
-        `${STRAPI_URL}/api/topic-categories?filters[slug][$eq]=${proposal.category_slug}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      if (catRes.ok) {
-        const catData = await catRes.json()
-        categoryId = catData?.data?.[0]?.id ?? null
-      }
-    }
+// Publish an approved proposal as an active topic; returns its slug.
+async function createTopicFromProposal(proposal) {
+  let slug = slugify(proposal.title) || `topic-${Date.now()}`
+  const { rows: existing } = await query('SELECT 1 FROM topics WHERE slug = $1', [slug])
+  if (existing.length) slug = `${slug}-${Date.now()}`
 
-    const slug = slugify(proposal.title)
-    const payload = {
-      title: proposal.title,
-      slug,
-      context: proposal.description || null,
-      status: 'active',
-      publishedAt: new Date().toISOString(),
-      ...(categoryId && { category: categoryId }),
-    }
-
-    const res = await fetch(`${STRAPI_URL}/api/topics`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: payload }),
-    })
-    if (!res.ok) return null
-    const created = await res.json()
-    return created?.data?.attributes?.slug ?? slug
-  } catch {
-    return null
-  }
+  const { rows: [{ category_slug }] } = await query(
+    'SELECT (SELECT slug FROM categories WHERE slug = $1) AS category_slug', [proposal.category_slug || null]
+  )
+  await query(
+    `INSERT INTO topics (slug, title, context, category_slug, status, is_featured, created_by)
+     VALUES ($1,$2,$3,$4,'active',false,$5)`,
+    [slug, proposal.title, proposal.description || null, category_slug, proposal.user_id]
+  )
+  return slug
 }
 
 export async function submit(req, res, next) {
@@ -120,16 +95,7 @@ export async function approve(req, res, next) {
       [req.user.id, id]
     )
 
-    // Create the topic in Strapi (public CMS) and sync to Express topics table
-    const topicSlug = await createTopicInStrapi(proposal)
-    if (topicSlug) {
-      await query(
-        `INSERT INTO topics (slug, title, context, category_slug, status, is_featured)
-         VALUES ($1,$2,$3,$4,'active',false)
-         ON CONFLICT (slug) DO NOTHING`,
-        [topicSlug, proposal.title, proposal.description || null, proposal.category_slug || null]
-      )
-    }
+    const topicSlug = await createTopicFromProposal(proposal)
 
     await query(
       `INSERT INTO notifications (user_id, type, message, link)

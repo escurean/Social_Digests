@@ -25,8 +25,8 @@ export default function AdminCampaignNewPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Load active topics from Strapi for the linked-topic selector
-    cmsContent.topics.list({ 'filters[status][$eq]': 'active' })
+    // Load active topics for the linked-topic selector
+    cmsContent.topics.list({ status: 'active' })
       .then(({ data }) => setTopicList(normalizeList(data)))
       .catch(() => {})
 
@@ -83,22 +83,21 @@ export default function AdminCampaignNewPage() {
     setSubmitError('')
 
     try {
-      const newMediaIds = []
+      const newMedia = []
       for (const file of pendingFiles) {
         const media = await cmsAdmin.uploadImage(file)
-        newMediaIds.push(media.id)
+        newMedia.push(media)
       }
       setUploading(false)
 
-      const keptIds  = existingImages.filter((img) => !removedIds.has(img.id)).map((img) => img.id)
-      const imageIds = [...keptIds, ...newMediaIds]
+      const images = [...existingImages.filter((img) => !removedIds.has(img.id)), ...newMedia]
 
       const payload = {
         ...form,
         goal_amount: parseFloat(form.goal_amount),
         deadline:    form.deadline || null,
         topic_slug:  form.topic_slug || null,
-        imageIds,
+        images,
       }
 
       if (isEditing) {

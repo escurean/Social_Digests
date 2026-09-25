@@ -1,11 +1,12 @@
-const STRAPI_BASE = (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_STRAPI_URL : null) || 'http://localhost:1337'
+// Media URLs are stored in Postgres (topics.images / campaigns.images). Hosted providers
+// give absolute URLs. A relative URL (local Strapi uploads) is only resolvable when
+// VITE_MEDIA_URL is set; otherwise it is dropped so no request goes to localhost.
+const MEDIA_BASE = (typeof import.meta !== 'undefined' ? import.meta.env?.VITE_MEDIA_URL || import.meta.env?.VITE_STRAPI_URL : null) || ''
 
-// Strapi local-storage provider returns relative URLs (/uploads/…).
-// Prepend the Strapi origin so they resolve correctly from any frontend port.
 function absoluteUrl(url) {
   if (!url) return null
   if (url.startsWith('http://') || url.startsWith('https://')) return url
-  return `${STRAPI_BASE}${url}`
+  return MEDIA_BASE ? `${MEDIA_BASE.replace(/\/$/, '')}${url}` : null
 }
 
 /**

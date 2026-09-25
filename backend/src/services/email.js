@@ -1,12 +1,10 @@
-const STRAPI_URL = process.env.STRAPI_URL || 'http://localhost:1337'
-const STRAPI_TOKEN = process.env.STRAPI_API_TOKEN
+import { query } from '../config/db.js'
 
 async function fetchTemplate(key) {
-  const url = `${STRAPI_URL}/api/email-templates?filters[key][$eq]=${key}&filters[is_active][$eq]=true`
-  const headers = STRAPI_TOKEN ? { Authorization: `Bearer ${STRAPI_TOKEN}` } : {}
-  const res = await fetch(url, { headers })
-  const data = await res.json()
-  return data.data?.[0]?.attributes || null
+  const { rows: [t] } = await query(
+    'SELECT subject, body_html FROM email_templates WHERE key = $1 AND is_active = true', [key]
+  )
+  return t || null
 }
 
 function interpolate(str, vars) {

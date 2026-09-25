@@ -56,7 +56,7 @@ export default function AdminCampaignsPage() {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 600 }}>Campaigns</h1>
           <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 2 }}>
-            {list.length} campaign{list.length !== 1 ? 's' : ''} · managed via Strapi CMS
+            {list.length} campaign{list.length !== 1 ? 's' : ''}
           </p>
         </div>
         <Link to="/admin/campaigns/new" className="btn-primary">+ New campaign</Link>
@@ -66,7 +66,7 @@ export default function AdminCampaignsPage() {
         <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading…</div>
       ) : loadError ? (
         <div className="card" style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-          <p style={{ marginBottom: 12 }}>Failed to load campaigns. Check the Strapi connection.</p>
+          <p style={{ marginBottom: 12 }}>Failed to load campaigns. Please try again.</p>
           <button className="btn-secondary" onClick={load}>Retry</button>
         </div>
       ) : list.length === 0 ? (

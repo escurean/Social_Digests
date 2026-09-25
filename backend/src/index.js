@@ -23,13 +23,13 @@ import notificationsRoutes from './routes/notifications.js'
 import topicsRoutes from './routes/topics.js'
 import categoriesRoutes from './routes/categories.js'
 import campaignsRoutes from './routes/campaigns.js'
-import cmsProxyRoutes from './routes/cms-proxy.js'
+import adminContentRoutes from './routes/admin-content.js'
+import uploadsRoutes from './routes/uploads.js'
 import bannersRoutes from './routes/banners.js'
 import emailTemplatesRoutes from './routes/email_templates.js'
 import pagesRoutes from './routes/pages.js'
 import settingsRoutes from './routes/settings.js'
 import statsRoutes from './routes/stats.js'
-import webhookRoutes from './routes/webhooks.js'
 import errorHandler from './middleware/errorHandler.js'
 import { registerLimiter, loginLimiter, forgotPasswordLimiter } from './middleware/rateLimiters.js'
 
@@ -87,7 +87,6 @@ app.use(cors({
 app.use(cookieParser())
 // Raw body for webhook signature verification (must come before express.json())
 app.use('/api/donations/stripe/webhook', express.raw({ type: 'application/json' }))
-app.use('/api/webhooks/strapi',          express.raw({ type: 'application/json' }))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -126,7 +125,8 @@ app.post('/api/auth/forgot-password', forgotPasswordLimiter)
 
 app.use('/api/auth',           authRoutes)
 app.use('/api/users',          usersRoutes)
-app.use('/api/cms',            cmsProxyRoutes)
+app.use('/api/admin',          adminContentRoutes)
+app.use('/api/uploads',        uploadsRoutes)
 app.use('/api/topics',         topicsRoutes)
 app.use('/api/categories',     categoriesRoutes)
 app.use('/api/campaigns',      campaignsRoutes)
@@ -135,7 +135,6 @@ app.use('/api/email-templates', emailTemplatesRoutes)
 app.use('/api/pages',          pagesRoutes)
 app.use('/api/settings',       settingsRoutes)
 app.use('/api/stats',          statsRoutes)
-app.use('/api/webhooks',       webhookRoutes)
 app.use('/api',                contributionsRoutes)
 app.use('/api/proposals',      proposalsRoutes)
 app.use('/api/donations',      donationsRoutes)
